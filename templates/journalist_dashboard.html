@@ -1,0 +1,264 @@
+{% extends "base.html"%} {% block title %} BuzzNews | Journalist {% endblock %}
+{%block logout %} 
+ <div class="navbar-right">
+  <a href="javascript:void(0)" class="profile-icon me-3" onclick="toggleProfile()">
+    <img
+      src="/static/user_logo.jpg"
+      alt="Profile"
+      height="32"
+      style="border-radius: 50%"
+    />
+  </a>
+  <form method="POST" action="{{ url_for('personnel_logout') }}">
+  <button type="submit" class="btn logout-btn">Logout</button>
+</form>
+
+<!-- Profile Sidebar -->
+<div id="profileSidebar" class="profile-sidebar">
+  <div class="profile-header">
+    <h4>Edit Profile</h4>
+    <button class="close-btn" onclick="toggleProfile()">×</button>
+  </div>
+
+  <form method="POST" action="{{ url_for('update_profile') }}" enctype="multipart/form-data">
+    
+    <div class="form-group">
+        <label>Profile Image</label>
+        {% if user.profile_image %}
+          <img src="{{ url_for('static', filename='uploads/' ~ user.profile_image) }}" 
+               alt="Profile Picture" 
+               style="width:120px; height:120px; object-fit:cover; border-radius:50%; margin-bottom:10px;">
+        {% else %}
+          <img src="{{ url_for('static', filename='user_logo.jpg') }}" 
+               alt="Profile Picture" 
+               style="width:120px; height:120px; object-fit:cover; border-radius:50%; margin-bottom:10px;">
+        {% endif %}
+        <input type="file" name="profile_image" accept="image/*" />
+        <input type="hidden" name="current_profile_image" value="{{ user.profile_image }}">
+      </div>
+    <!-- Username -->
+    <div class="form-group">
+      <label>Username</label>
+      {% if user.role_id in [2,3] %}
+        <input type="text" name="username" value="{{ user.username }}" readonly class="form-control" />
+      {% else %}
+        <input type="text" name="username" value="{{ user.username }}" class="form-control" />
+      {% endif %}
+    </div>
+
+    <!-- Password validation-->
+      <div class="form-group">
+  <label>Current Password</label>
+  <div class="password-container">
+    <input type="password" name="current_password" placeholder="Enter current password" required>
+    <button type="button" class="toggle-password" onclick="togglePassword(this)"><i class="fa-regular fa-eye-slash"></i></button>
+  </div>
+</div>
+
+<div class="form-group">
+  <label>New Password</label>
+  <div class="password-container">
+    <input type="password" name="new_password" placeholder="Enter new password">
+    <button type="button" class="toggle-password" onclick="togglePassword(this)"><i class="fa-regular fa-eye-slash"></i></button>
+  </div>
+</div>
+
+
+    <!-- Bio -->
+    <div class="form-group">
+      <label>Bio</label>
+      <textarea name="bio" rows="3" placeholder="Write about yourself..." style="padding: 10px">{{ user.bio }}</textarea>
+      <input type="hidden" name="current_bio" value="{{ user.bio }}">
+    </div>
+
+    <input type="hidden" name="next" value="{{ request.path }}">
+    <!-- Save -->
+    <button type="submit" class="btn save-btn">Save Changes</button>
+  </form>
+</div>
+
+</div>
+</div>
+
+{% endblock %}
+{% block content %}
+
+<div class="main-content">
+  <div class="journalist-dashboard">
+    <aside class="sidebar">
+      <ul>
+        <li>
+          <a href="{{ url_for('create_article') }}"
+            ><i class="fa-regular fa-pen-to-square"></i> Create New Article</a
+          >
+        </li>
+        <li>
+          <a href="{{ url_for('journalist_dashboard', tab='draft') }}"
+            > <i class="fa-regular fa-folder-open"></i>My Drafts</a
+          >
+        </li>
+        <li>
+          <a href="{{ url_for('journalist_dashboard', tab='pending') }}"
+            ><i class="fa-regular fa-hourglass-half"></i> Pending Articles</a
+          >
+        </li>
+        <li>
+          <a href="{{ url_for('journalist_dashboard', tab='approved') }}"
+            ><i class="fa-regular fa-newspaper"> </i> Approved Articles</a
+          >
+        </li>
+        <li>
+          <a href="{{ url_for('journalist_dashboard', tab='rejected') }}"
+            ><i class="fa-regular fa-rectangle-xmark"></i> Rejected Articles</a
+          >
+        </li>
+      </ul>
+    </aside>
+
+    <main class="dashboard-main">
+      <div class="datetime-container">
+      <span id="date"></span> | <span id="time"></span>
+    </div>
+      <section class="dashboard-header">
+        <h2>
+          {% if active_tab == 'draft' %}My Drafts{% elif active_tab=='pending'
+          %}Pending Articles{% elif active_tab=='approved' %}Approved Articles{%
+          else %}Rejected Articles{% endif %}
+        </h2>
+      </section>
+
+      <!-- Article Cards / Table -->
+      <section class="article-list">
+        {% for article in articles[active_tab] %}
+        <div class="article-card">
+          <h3>{{ article.title }}</h3>
+          <p>{{ article.content[:100] | striptags }}...</p>
+          <span class="status {{ article.status }}"
+            >{{ article.status|capitalize }}</span>
+
+          <div class="actions">
+            <form action="{{ url_for('review_articles', article_id=article.id, next=url_for('journalist_dashboard')) }}" method="GET">
+             <input type="hidden" name="article_id" value="{{ article.id }}">
+             <button type="submit" class="btn btn-sm btn-outline-primary">Edit</button>
+            </form>
+            <form action="{{ url_for('delete_article', article_id=article.id) }}" method="post" style="display:inline;">
+            <button type="submit" class="btn btn-sm btn-outline-danger"> Delete </button>
+            </form>
+            {% if article.status == 'rejected' or article.status == 'draft' %}
+            <a href="#">Resubmit</a>
+            {% endif %}
+          </div>
+        </div>
+        {% else %}
+        <p>No articles in this section.</p>
+        {% endfor %}
+      </section>
+
+      <!-- Notifications / Feedback -->
+      <section class="notifications">
+        <h3>Notifications</h3>
+        <ul id="notification-list">
+            {% for note in notifications %}
+            <li class="notification notification-{{ note.type }}" data-id="{{ note.id }}">
+                <span class="close-btn" onclick="dismissNotification({{ note.id }})">&times;</span>
+                {{ note.message }}
+            </li>
+            {% else %}
+            <li>No notifications.</li>
+            {% endfor %}
+        </ul>
+      
+        {% if all_notifications|length > 3 %}
+        <button id="see-more-btn" class="btn btn-sm btn-link" onclick="toggleNotifications()">See More</button>
+        <ul id="all-notifications" class="d-none">
+            {% for note in all_notifications[3:] %}
+            <li class="notification notification-{{ note.type }}" data-id="{{ note.id }}">
+                <span class="close-btn" onclick="dismissNotification({{ note.id }}, this)">&times;</span>
+                {{ note.message }}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+      </section>
+    </main>
+  </div>
+  {% endblock %}
+  {% block script %}
+<script>
+  function updateDateTime() {
+        const now = new Date();
+
+        const dateOptions = { day: "2-digit", month: "long", year: "numeric" };
+        const timeOptions = {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        };
+
+        const dateStr = now.toLocaleDateString("en-GB", dateOptions);
+        const timeStr = now.toLocaleTimeString("en-GB", timeOptions);
+
+        document.getElementById("date").textContent = dateStr;
+        document.getElementById("time").textContent = timeStr;
+      }
+      document.addEventListener("DOMContentLoaded", function () {
+        updateDateTime();
+        setInterval(updateDateTime, 1000);
+      });
+  
+function toggleProfile() {
+  document.getElementById("profileSidebar").classList.toggle("active");
+}
+  function togglePassword(button) {
+    const input = button.previousElementSibling; 
+    const icon = button.querySelector('i');      
+
+    if (input.type === "password") {
+        input.type = "text";
+        icon.classList.remove("fa-eye-slash");
+        icon.classList.add("fa-eye");
+    } else {
+        input.type = "password";
+        icon.classList.remove("fa-eye-slash");
+        icon.classList.add("fa-eye-slash");
+    }
+}
+document.getElementById('see-more-btn')?.addEventListener('click', function() {
+    const notificationList = document.getElementById('notification-list');
+    const allNotifications = {{ all_notifications|tojson }};
+    
+    notificationList.innerHTML = ''; 
+    allNotifications.forEach(note => {
+        const li = document.createElement('li');
+        li.innerHTML = `<div class="notification notification-${note.type}">${note.message}</div>`;
+        notificationList.appendChild(li);
+    });
+    
+    this.style.display = 'none'; 
+});
+function toggleNotifications() {
+    const allNotes = document.getElementById("all-notifications");
+    allNotes.classList.toggle("d-none");
+    const btn = document.getElementById("see-more-btn");
+    btn.textContent = allNotes.classList.contains("d-none") ? "See More" : "See Less";
+}
+
+function dismissNotification(notifId, element) {
+    fetch(`/dismiss_notification/${notifId}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Remove notification from DOM
+            element.parentElement.remove();
+        } else {
+            console.error(data.message);
+        }
+    })
+    .catch(err => console.error('Error:', err));
+}
+
+</script>
+{% endblock %}

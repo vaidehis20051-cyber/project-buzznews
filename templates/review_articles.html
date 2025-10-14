@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}Review Articles | BuzzNews{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <div class="review-container">
+      <div class="mb-3">
+  <a href="{{ next_url }}" class="btn btn-secondary">← Back to Dashboard</a>
+</div>
+    {% if session.get('role') in ['admin', 'moderator'] %}
+
+      <!-- Approved Articles -->
+      <div class="review-panel">
+        <h3>Approved Articles</h3>
+        {% if approved_articles %}
+          <ul>
+            {% for article in approved_articles %}
+              <li>
+                <a href="{{ url_for('view_article', article_id=article.id,next='admin_dashboard') }}" 
+                    class="article-link" 
+                    target="_blank" 
+                    style="text-decoration: underline; color: #01332b; font-weight: 500;">
+                    {{ article.title }}
+                    <br>author:{{ article.author }}
+                </a>
+                <form action="{{ url_for('delete_article', article_id=article.id) }}" method="POST" style="display:inline;">
+                   <input type="hidden" name="next" value="{{ request.full_path }}">
+                  <button type="submit" class="btn btn-reject btn-danger">Delete</button>
+                </form>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p>No approved articles.</p>
+        {% endif %}
+      </div>
+
+      <!-- Rejected Articles -->
+      <div class="review-panel">
+            <h3>Rejected Articles</h3>
+            {% if rejected_articles %}
+            <ul>
+                {% for article in rejected_articles %}
+                <li>
+                    {{ article.title }}
+                    {% if article.rejection_reason %}
+                    <br><small style="color:#555;">Reason: {{ article.rejection_reason }}</small>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p>No rejected articles.</p>
+            {% endif %}
+        </div>
+
+      <!-- Pending Articles -->
+      <div class="review-panel">
+        <h3>Pending Articles</h3>
+        {% if pending_articles %}
+          <ul>
+            {% for article in pending_articles %}
+              <li>
+                <div class="article-header">
+                  <strong>{{ article.title }}</strong> by {{ article.author }}
+                </div>
+
+                <button type="button" class="btn btn-approve btn-sm" onclick="openModal({{ article.id }})">
+                  Read
+                </button>
+
+                <!-- Approve / Reject buttons BELOW -->
+                <form method="POST" style="margin-top:5px;">
+                        <input type="hidden" name="article_id" value="{{ article.id }}">
+                        <button type="submit" name="action" value="approved" class="btn btn-approve btn-sm">Approve</button>
+                        
+                        <button type="button" class="btn btn-reject btn-sm" onclick="toggleRejectionBox({{ article.id }})">Reject</button>
+                        <div id="rejection-box-{{ article.id }}" class="d-none" style="margin-top:5px;">
+                          <input type="text" name="rejection_reason" placeholder="Enter reason for rejection" style="width: 70%;">
+                          <button type="submit" name="action" value="rejected" class="btn btn-danger btn-sm" style="margin-top: 20px">Confirm</button>
+                        </div>
+                </form>
+
+                <!-- Modal -->
+                <div id="modal-{{ article.id }}" class="article-modal d-none">
+                  <div class="modal-content">
+                    <span class="close-btn" onclick="closeModal({{ article.id }})">&times;</span>
+                    <h4>{{ article.title }}</h4>
+                    <p><strong>Author:</strong> {{ article.author }}</p>
+
+                    <div class="article-body">
+                      {{ article.content |striptags }}
+                      {% if article.image_url %}
+                      <img src="{{ url_for('static', filename='uploads/' ~ article.image_url) }}"
+                           alt="Article Image"
+                           style="width: 100%; max-height: 300px; object-fit: cover; margin-top: 10px; border-radius: 5px;">
+                      {% endif %}
+                    </div>
+
+                    <div class="article-footer" style="margin-top:20px; font-size:0.9rem; color:#555; justify-content:space-between;">
+                        <span>Category: {{ article.category_name }}</span>
+                        <span>Main District: {{ article.main_district_name }}</span>
+                        {% if article.second_district_name %}
+                          <span>Second District: {{ article.second_district_name }}</span>
+                        {% endif %}
+                        <span>Type: {% if article.is_local_voice %}Local Voice{% else %}Article{% endif %}</span>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p>No pending articles.</p>
+        {% endif %}
+      </div>
+
+    {% elif session.get('role') == 'journalist' and article_to_edit %}
+
+      <div class="edit-article-form">
+        <h3>Edit Article: {{ article_to_edit.title }}</h3>
+        <form method="POST" enctype="multipart/form-data">
+
+          <input type="text" name="title" value="{{ article_to_edit.title }}">
+
+          <textarea name="content" required>{{ article_to_edit.content | striptags}}</textarea>
+
+         <!-- Existing Image Preview -->
+      {% if article_to_edit.image_url %}
+      <div class="form-group">
+        <label>Current Image:</label>
+        <div style="margin-top: 10px;">
+          <img src="{{ url_for('static', filename='uploads/' ~ article_to_edit.image_url) }}"
+               alt="Current Article Image"
+               style="max-width: 300px; max-height: 200px; display: block; border-radius: 5px; margin-bottom: 10px;">
+        </div>
+        <!-- Delete Image Checkbox -->
+        <div class="form-check">
+          <input type="checkbox" id="delete_image" name="delete_image" value="yes">
+          <label for="delete_image">Delete current image</label>
+        </div>
+      </div>
+      {% endif %}
+      <!-- Replace Image -->
+      <div class="form-group">
+        <label for="new_image">Replace Image (optional):</label>
+        <input type="file" id="new_image" name="new_image" accept="image/*">
+      </div>
+
+          <select name="category_id">
+            {% for cat in categories %}
+              <option value="{{ cat.id }}" {% if cat.id == article_to_edit.category_id %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+          <select name="district_id">
+            {% for dist in districts %}
+              <option value="{{ dist.id }}" {% if dist.id == article_to_edit.district_id %}selected{% endif %}>{{ dist.name }}</option>
+            {% endfor %}
+          </select>
+          <select name="second_district_id">
+            <option value="" {% if not article_to_edit.second_district_id %}selected{% endif %}>-- None --</option>
+            {% for dist in districts %}
+                <option value="{{ dist.id }}" 
+                      {% if dist.id == article_to_edit.second_district_id %}selected{% endif %}>
+                  {{ dist.name }}
+                </option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-primary">Resubmit</button>
+        </form>
+      </div>
+
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+function openModal(articleId) {
+  const modal = document.getElementById('modal-' + articleId);
+  modal.classList.remove('d-none');
+  document.body.style.overflow = 'hidden'; // Prevent background scroll
+}
+
+function closeModal(articleId) {
+  const modal = document.getElementById('modal-' + articleId);
+  modal.classList.add('d-none');
+  document.body.style.overflow = ''; // Restore scroll
+}
+function toggleRejectionBox(id) {
+  const box = document.getElementById('rejection-box-' + id);
+  box.classList.toggle('d-none');
+}
+
+</script>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %} 
+{% block title %}Today's Sitemap | BuzzNews{% endblock%} 
+{% block content %}
+<div class="main-content">
+  <h2 class="title" style="padding-bottom: 20px">Today's Articles Sitemap</h2>
+  <div class="article-card">
+    {% if articles %}
+    <div class="row">
+      {% for article in articles %}
+      <div class="col-md-6 mb-4">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h5 class="article-title">
+              {{ article.title }} {% if article.is_local_voice %}
+              <span class="article-meta">Local Voice</span>
+              {% endif %}
+            </h5>
+
+            <p class="article-meta">
+              <strong>Author:</strong> {{ article.author }}
+            </p>
+            <p class="article-meta">
+              <strong>Category:</strong> {{ article.category_name or "N/A" }}
+            </p>
+            <p class="article-meta">
+              <strong>District:</strong> {{ article.district_name or "N/A" }}
+            </p>
+            <p class="article-meta">
+              <strong>Submitted at:</strong> {{
+              article.submit_time.strftime("%d-%m-%Y %H:%M") }}
+            </p>
+
+            <div class="view-article-btn">
+              <a
+                href="{{ url_for('view_article', article_id=article.id) }}"
+                class="btn-view-article btn btn-primary btn-sm"
+              >
+                View Article
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted">No articles submitted today.</p>
+  {% endif %}
+</div>
+  </div>
+
+{% endblock %}

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Us | BuzzNews</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/simple.css') }}">
+</head>
+<body>
+    <header class="title-bar">
+        <div class="title-left">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="BuzzNews Logo" class="logo">
+            
+        </div>
+        <h1 class="title-center">About Us</h1>
+    </header>
+
+    <main class="container">
+        <p>
+            BuzzNews is a modern web news aggregator designed to bring the latest updates 
+            from across Gujarat in one place. Our unique feature <strong>Local Voices</strong> 
+            empowers community members to share their own stories, ensuring that local issues 
+            and perspectives stand alongside mainstream headlines.
+        </p>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 BuzzNews. All rights reserved.</p>
+    </footer>
+</body>
+</html>

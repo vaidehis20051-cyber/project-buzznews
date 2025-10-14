@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+    <link rel="stylesheet"href="{{ url_for('static', filename='css/style.css') }}"/>
+  </head>
+  <body class="page-wrapper">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-title">
+        <img
+          src="{{ url_for('static', filename='logo.png') }}"
+          alt="BuzzNews Logo"
+          class="logo"
+        />
+      </div>
+      {% block logout %} {% endblock %}
+    </header>
+
+    <!-- Main Page Content -->
+    {% block content %}{% endblock %}
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="footer-section">
+        <h3>About Us</h3>
+        <ul>
+          <li><a href="/buzznews/about_us">About Us</a></li>
+          <li><a href="#" id="openSocials">Socials</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h3>BuzzNews</h3>
+        <ul>
+          <li><a href="/buzznews/editorial_values">Editorial Values</a></li>
+          <li><a href="/buzznews/sitemap">Sitemap</a></li>
+        </ul>
+      </div>
+    </footer>
+    <div id="socialsModal" class="modal">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Follow Us</h2>
+        <p>
+          📘 Facebook:
+          <a href="https://facebook.com/buzznews" target="_blank"
+            >facebook.com/buzznews</a
+          ><br />
+          🐦 Twitter:
+          <a href="https://twitter.com/buzznews" target="_blank">@buzznews</a
+          ><br />
+          📸 Instagram:
+          <a href="https://instagram.com/buzznews" target="_blank">@buzznews</a
+          ><br />
+          ▶️ YouTube:
+          <a href="https://youtube.com/buzznews" target="_blank"
+            >BuzzNews Channel</a
+          >
+        </p>
+      </div>
+    </div>
+
+    <script>
+      const modal = document.getElementById("socialsModal");
+      const btn = document.getElementById("openSocials");
+      const span = document.getElementsByClassName("close")[0];
+
+      if (btn) {
+        btn.onclick = function (e) {
+          e.preventDefault();
+          modal.style.display = "block";
+        };
+      }
+
+      if (span) {
+        span.onclick = function () {
+          modal.style.display = "none";
+        };
+      }
+
+      window.onclick = function (event) {
+        if (event.target === modal) {
+          modal.style.display = "none";
+        }
+      };
+    </script>
+
+    {% block script %} {% endblock %}
+  </body>
+</html>

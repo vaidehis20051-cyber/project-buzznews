@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %} {{ article.title }} | BuzzNews {% endblock %}
+
+{% block content %}
+<div class="article-container">
+
+  <!-- Article Card -->
+  <div class="article-card">
+
+    <!-- Title -->
+    <h1 class="article-title">{{ article.title }}</h1>
+
+    <!-- Meta Info -->
+    <p class="article-meta">
+      By <strong>{{ article.author }}</strong> | 
+      {{ article.submit_time.strftime('%B %d, %Y %I:%M %p') }}
+    </p>
+
+    <!-- Article Image -->
+    {% if article.image_url %}
+      <img src="{{ url_for('static', filename='uploads/' ~ article.image_url) }}" 
+           alt="Article Image" 
+           class="article-image">
+    {% endif %}
+
+    <!-- Content -->
+    <div class="article-content">
+     <p> {{ article.content | striptags  }}</p>
+    </div>
+
+    <hr>
+
+    <!-- Footer -->
+    <div class="article-footer">
+      <span>Category: {{ article.category_name }}</span>
+      <span>District: {{ article.main_district_name }}</span>
+      {% if article.second_district_name %}
+        <span> | Second District: {{ article.second_district_name }}</span>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- Back Button -->
+  <div class="back-btn">
+   {% if next_page == 'admin_dashboard' %}
+    <a href="{{ url_for('review_articles') }}" class="btn-back">&larr; Go Back</a>
+  {% elif next_page == 'moderator_dashboard' %}
+    <a href="{{ url_for('moderator_dashboard') }}" class="btn-back">&larr; Back to Dashboard</a>
+  {% elif next_page == 'journalist_dashboard' %}
+    <a href="{{ url_for('journalist_dashboard') }}" class="btn-back">&larr; Back to Dashboard</a>
+  {% else %}
+    <a href="{{ url_for('home') }}" class="btn-back">&larr; Back to News</a>
+  {% endif %}
+  </div>
+
+</div>
+{% endblock %}

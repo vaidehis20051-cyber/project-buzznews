@@ -1,0 +1,258 @@
+{% extends "base.html" %} 
+{% block title %}BuzzNews | Home{% endblock %} 
+
+{% block logout %}
+<div class="navbar-right">
+  <a href="javascript:void(0)" class="profile-icon me-3" onclick="toggleProfile()">
+    <img src="/static/user_logo.jpg" alt="Profile" height="32" style="border-radius: 50%" />
+  </a>
+  <form method="POST" action="{{ url_for('logout') }}">
+    <button type="submit" class="btn logout-btn">Logout</button>
+  </form>
+
+  <!-- Profile Sidebar -->
+  <div id="profileSidebar" class="profile-sidebar">
+    <div class="profile-header">
+      <h4>Edit Profile</h4>
+      <button class="close-btn" onclick="toggleProfile()">×</button>
+    </div>
+
+    <form method="POST" action="{{ url_for('update_profile') }}" enctype="multipart/form-data">
+      <input type="hidden" name="next" value="{{ request.path or '' }}">
+
+      <div class="form-group">
+        <!--Profile Image-->
+        <label>Profile Image</label>
+        {% if user.profile_image %}
+          <img src="{{ url_for('static', filename='uploads/' ~ user.profile_image) }}" 
+               alt="Profile Picture" 
+               style="width:120px; height:120px; object-fit:cover; border-radius:50%; margin-bottom:10px;">
+        {% else %}
+          <img src="{{ url_for('static', filename='user_logo.jpg') }}" 
+               alt="Profile Picture" 
+               style="width:120px; height:120px; object-fit:cover; border-radius:50%; margin-bottom:10px;">
+        {% endif %}
+        <input type="file" name="profile_image" accept="image/*" />
+        <input type="hidden" name="current_profile_image" value="{{ user.profile_image or '' }}">
+      </div>
+      <!--Username-->
+      <div class="form-group">
+        <label>Username</label>
+        {% if user.role_id in [2,3] %}
+          <input type="text" name="username" value="{{ session.username }}" readonly class="form-control" />
+        {% else %}
+          <input type="text" name="username" value="{{ session.username }}" class="form-control" />
+        {% endif %}
+      </div>
+
+      <!-- Password validation-->
+      <div class="form-group">
+  <label>Current Password</label>
+  <div class="password-wrapper">
+    <input type="password" name="current_password" placeholder="Enter current password" required>
+    <button type="button" class="toggle-password" onclick="togglePassword(this)" style="position:absolute; top:57.5%; right: 20%;"><i class="fa-regular fa-eye-slash"></i></button>
+  </div>
+</div>
+
+<div class="form-group">
+  <label>New Password</label>
+  <div class="password-wrapper">
+    <input type="password" name="new_password" placeholder="Enter new password">
+    <button type="button" class="toggle-password" onclick="togglePassword(this)"><i class="fa-regular fa-eye-slash"></i></button>
+  </div>
+</div>
+
+      <div class="form-group">
+        <label>Bio</label>
+        <textarea name="bio" rows="3" placeholder="Write about yourself..." style="padding: 5px">{{ user.bio }}</textarea>
+        <input type="hidden" name="current_bio" value="{{ user.bio }}">
+      </div>
+
+      <button type="submit" class="btn save-btn">Save Changes</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+
+{% block content %}
+<!-- Filter Bar -->
+<nav class="navbar-menu">
+  <section class="filter-bar">
+    <form method="GET" action="{{ url_for('home') }}" class="filter-form">
+      <!-- District Dropdown -->
+      <select name="district_id" id="district" class="filter-select">
+        <option value="" disabled {% if not selected_district %}selected{% endif %}>Select District</option>
+        {% for district in districts %}
+        <option value="{{ district.id }}" {% if selected_district == district.id|string %}selected{% endif %}>{{ district.name }}</option>
+        {% endfor %}
+      </select>
+      <!-- Category Dropdown -->
+      <select name="category_id" id="categories" class="filter-select">
+        <option value="" disabled {% if not selected_category %}selected{% endif %}>Select Category</option>
+        {% for category in categories %}
+        <option value="{{ category.id }}" {% if selected_category == category.id|string %}selected{% endif %}>{{ category.name }}</option>
+        {% endfor %}
+      </select>
+
+      <!-- Filter & Clear -->
+      <button type="submit" class="btn-filter">Filter</button>
+      <a href="{{ url_for('home') }}" class="btn-clear">Clear</a>
+
+    </form>
+  </section>
+</nav>
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-container">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<!-- Articles -->
+<div class="main-content">
+  <section class="news-feed">
+    <h2>Latest News</h2>
+    {% if articles %}
+  <div class="news-grid">
+    {% for article in articles %}
+    <div class="news-card">
+      <h3>{{ article.title }}</h3>
+      <p>{{ article.content|striptags|truncate(100) }}</p>
+      <a href="{{ url_for('view_article', article_id=article.id,next='home') }}">Read More</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    {% if filters_applied %}
+      <p class="no-results-msg">No articles found for your selection.</p>
+    {% endif %}
+  {% endif %}
+  </section>
+
+  <!-- Local Voices -->
+  <section class="local-voices">
+    <h2>Local Voices</h2>
+    {% if local_voices %}
+  <div class="local-grid">
+    {% for lv in local_voices %}
+    <div class="local-card">
+      <h3>{{ lv.title }}</h3>
+      <p>{{ lv.content|striptags|truncate(100) }}...</p>
+      <a href="{{ url_for('view_article', article_id=lv.id) }}">Explore</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    {% if filters_applied %}
+      <p class="no-results-msg">No local voices found for your selection.</p>
+    {% endif %}
+  {% endif %}
+  </section>
+    
+</div>
+
+<section class="notifications" >
+        <h3>Notifications</h3>
+        <ul id="notification-list">
+            {% for note in notifications %}
+            <li class="notification notification-{{ note.type }}" data-id="{{ note.id }}">
+                <span class="close-btn" onclick="dismissNotification({{ note.id }})">&times;</span>
+                {{ note.message }}
+            </li>
+            {% else %}
+            <li>No notifications.</li>
+            {% endfor %}
+        </ul>
+      
+        {% if all_notifications|length > 3 %}
+        <button id="see-more-btn" class="btn btn-sm btn-link" onclick="toggleNotifications()">See More</button>
+        <ul id="all-notifications" class="d-none">
+            {% for note in all_notifications[3:] %}
+            <li class="notification notification-{{ note.type }}" data-id="{{ note.id }}">
+                <span class="close-btn" onclick="dismissNotification({{ note.id }},this)">&times;</span>
+                {{ note.message }}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+      </section>
+  <!-- Floating Button -->
+  <div class="floating-btn" onclick="togglePopup()" title="Add">+</div>
+  <div id="popup-options" class="popup-options d-none">
+    <button class="btn popup-btn" onclick="redirectToCreateArticle()">➕ Write Local Voice</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+function toggleProfile() {
+  document.getElementById("profileSidebar").classList.toggle("active");
+}
+function redirectToCreateArticle() {
+  window.location.href = "/article";
+}
+function togglePopup() {
+  document.getElementById("popup-options").classList.toggle("d-none");
+}
+
+function togglePassword(button) {
+    const input = button.previousElementSibling; 
+    const icon = button.querySelector('i');      
+
+    if (input.type === "password") {
+        input.type = "text";
+        icon.classList.remove("fa-eye-slash");
+        icon.classList.add("fa-eye");
+    } else {
+        input.type = "password";
+        icon.classList.remove("fa-eye-slash");
+        icon.classList.add("fa-eye-slash");
+    }
+}
+
+document.getElementById('see-more-btn')?.addEventListener('click', function() {
+    const notificationList = document.getElementById('notification-list');
+    const allNotifications = {{ all_notifications|tojson }};
+    
+    notificationList.innerHTML = ''; 
+    allNotifications.forEach(note => {
+        const li = document.createElement('li');
+        li.innerHTML = `<div class="notification notification-${note.type}">${note.message}</div>`;
+        notificationList.appendChild(li);
+    });
+    
+    this.style.display = 'none'; 
+});
+function toggleNotifications() {
+    const allNotes = document.getElementById("all-notifications");
+    allNotes.classList.toggle("d-none");
+    const btn = document.getElementById("see-more-btn");
+    btn.textContent = allNotes.classList.contains("d-none") ? "See More" : "See Less";
+}
+
+function dismissNotification(notifId, element) {
+    fetch(`/dismiss_notification/${notifId}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Remove notification from DOM
+            element.parentElement.remove();
+        } else {
+            console.error(data.message);
+        }
+    })
+    .catch(err => console.error('Error:', err));
+}
+
+</script>
+{% endblock %}

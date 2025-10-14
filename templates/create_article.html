@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}Create Article | BuzzNews{% endblock %}
+
+{% block content %}
+<div class="article-form">
+    <div class="article-form-header" style="display:flex; justify-content:space-between; align-items:center;">
+        <h2>Create New Article</h2>
+
+        {% if drafts %}
+        <div class="draft-dropdown">
+            <label for="draft-select">Saved Drafts:</label>
+            <select id="draft-select" onchange="loadDraft(this.value)">
+                <option value="">-- Select Draft --</option>
+                {% for draft in drafts %}
+                    <option value="{{ draft.id }}"
+                        {% if article_to_edit and article_to_edit.id==draft.id %}selected{% endif %}>
+                        {{ draft.title }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+    </div>
+
+    <form method="POST" enctype="multipart/form-data">
+        
+        <!-- Article ID (readonly) -->
+        <div class="mb-3">
+            <label class="article-label">Article ID</label>
+            <input type="text" class="article-control" value="{{ next_id }}" readonly>
+        </div>
+
+        <!-- Title -->
+        <div class="mb-3">
+            <label class="article-label">Title</label>
+            <input type="text" class="article-control" name="title"
+                   value="{{ article_to_edit.title if article_to_edit else '' }}" required>
+        </div>
+
+        <!-- Category -->
+       <div class="mb-3"> 
+       <label class="article-label">Category</label> 
+       <select class="article-control" name="category_id" required> 
+            <option value="">-- Select Category --</option> 
+            {% for cat in categories %}
+                    <option value="{{ cat.id }}"
+                        {% if article_to_edit and article_to_edit.category_id==cat.id %}selected{% endif %}>
+                        {{ cat.name }}
+                    </option>
+            {% endfor %}
+        </select> 
+    </div> 
+
+    <!-- District -->
+    <div class="mb-3">
+        <label class="article-label">Main District</label>
+        <select name="district_id" id="district">
+                    <option value="" 
+                    {% if article_to_edit and not article_to_edit.district_id %}selected{% endif %}>
+                    All (Visible to everyone)
+                    </option>
+                    {% for district in districts %}
+                    <option value="{{ district.id }}"
+                        {% if article_to_edit and article_to_edit.district_id==district.id %}
+                            selected
+                        {% elif not article_to_edit and district.id==user.district_id %}
+                            selected
+                        {% endif %}>
+                        {{ district.name }}
+                    </option>
+                {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label class="article-label">Optional Second District</label>
+            <select name="second_district_id" id="second_district">
+            <option value="">-- Select if relevant --</option>
+                {% for district in districts %}
+                    {% if district.id != user.district_id %}
+                        <option value="{{ district.id }}"
+                            {% if article_to_edit and article_to_edit.second_district_id==district.id %}
+                                selected
+                            {% endif %}>
+                            {{ district.name }}
+                        </option>
+                    {% endif %}
+                {% endfor %}
+        </select>
+    </div>
+
+        <!-- Content -->
+        <label class="article-label">Content</label>
+        <div class="editor-toolbar">
+            <button type="button" onclick="formatDoc('bold')"><b>B</b></button>
+            <button type="button" onclick="formatDoc('underline')"><u>U</u></button>
+            <button type="button" onclick="formatDoc('italic')"><i>I</i></button>
+            <button type="button" onclick="formatDoc('insertUnorderedList')">&bull; List</button>
+        </div>
+        <div id="editor" class="editor" contenteditable="true" 
+             placeholder="Write your article here...">
+            {{ article_to_edit.content|safe if article_to_edit else '' }}
+        </div>
+       
+        <div class="mb-3 mt-3">
+            <label class="article-label">Upload Image (Max 1MB)</label>
+            <input type="file" id="singleImage" name="image_url" accept="image/*" class="article-control">
+            <small style="display:block; color:#666;">Please upload an image less than 1 MB.</small>
+            <div id="single-image-preview" class="mt-2">
+                {% if article_to_edit and article_to_edit.image_url %}
+                    <img src="{{ url_for('static', filename='uploads/' ~ article_to_edit.image_url) }}"
+                         style="max-width:200px; border-radius:6px; margin-top:8px;">
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Hidden textarea to store editor content -->
+        <textarea id="article-content" name="content" hidden></textarea>
+
+        <!-- Local Voice checkbox -->
+        {% if role in ['admin','journalist'] %}
+        <div class="form-check mb-3">
+            <input type="checkbox" class="article-check-input" name="is_local_voice" id="localVoice"
+                {% if article_to_edit and article_to_edit.is_local_voice %}checked{% endif %}>
+            <label class="article-check-label" for="localVoice">Mark as Local Voice</label>
+        </div>
+        {% endif %}
+
+        <!-- Action buttons -->
+        <div class="form-buttons">
+            {% if role == 'admin' %}
+            <button type="submit" name="action" value="publish" class="button">Publish</button>
+            <button type="submit" name="action" value="draft" class="btn-draft">Save as Draft</button>
+            {% elif role == 'journalist' %}
+            <button type="submit" name="action" value="draft" class="btn-draft">Save as Draft</button>
+            <button type="submit" name="action" value="publish" class="button">Submit for Approval</button>
+            {% else %}
+            <button type="submit" name="action" value="draft" class="btn-draft">Save as Draft</button>
+            <button type="submit" name="action" value="publish" class="button">Submit Article</button>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}
+{% block script%}
+<script>
+    /* --- Text Formatting --- */
+    function formatDoc(cmd) {
+        document.execCommand(cmd, false, null);
+    }
+
+    /* --- Single Image Preview & Validation --- */
+    const singleImageInput = document.getElementById('singleImage');
+    const singlePreview = document.getElementById('single-image-preview');
+
+    singleImageInput.addEventListener('change', function () {
+        singlePreview.innerHTML = ''; 
+        const file = this.files[0];
+        if (!file) return;
+
+        if (file.size > 1024 * 1024) { // 1 MB
+            alert('Image must be less than 1 MB.');
+            this.value = '';
+            return;
+        }
+
+        if (!file.type.startsWith('image/')) {
+            alert('Please upload a valid image file.');
+            this.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = e => {
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.style.maxWidth = '200px';
+            img.style.borderRadius = '6px';
+            img.style.marginTop = '8px';
+            singlePreview.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+    });
+
+    /* --- Form Submission --- */
+    document.querySelector("form").addEventListener("submit", function(e) {
+    const content = document.getElementById("editor").innerHTML.trim();
+    if(!content || content.replace(/<[^>]*>/g,'').trim().length===0) {
+        e.preventDefault();
+        alert("Content cannot be empty!");
+        return false;
+    }
+    document.getElementById("article-content").value = content;
+});
+    function loadDraft(draftId) {
+    if(draftId) {
+        window.location.href = "{{ url_for('create_article') }}?draft_id=" + draftId;
+    }
+    }
+
+</script>
+{% endblock %}

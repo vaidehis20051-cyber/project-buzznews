@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}BuzzNews | Admin Dashboard{% endblock %}
+
+{%block logout %} 
+ <div class="navbar-right">
+  <a href="javascript:void(0)" class="profile-icon me-3" onclick="toggleProfile()">
+    {%if user.profile_image%}
+    <img src="{{ url_for('static', filename='uploads/' ~ user.profile_image) }}" 
+               alt="Profile Picture" 
+               height="32"
+               style="border-radius: 50%"
+               />
+    {%else%}
+    <img
+      src="/static/user_logo.jpg"
+      alt="Profile"
+      height="32"
+      style="border-radius: 50%"
+    />
+    {%endif%}
+  </a>
+  <form method="POST" action="{{ url_for('personnel_logout') }}">
+  <button type="submit" class="btn logout-btn">Logout</button>
+</form>
+
+<!-- Profile Sidebar -->
+<div id="profileSidebar" class="profile-sidebar">
+  <div class="profile-header">
+    <h4>Edit Profile</h4>
+    <button class="close-btn" onclick="toggleProfile()">×</button>
+  </div>
+
+  <form method="POST" action="{{ url_for('update_profile') }}" enctype="multipart/form-data">
+    <input type="hidden" name="next" value="{{ request.path or '' }}">
+    <!-- Profile image -->
+    <div class="form-group">
+      <label>Profile Image</label>
+        {% if user.profile_image %}
+          <img src="{{ url_for('static', filename='uploads/' ~ user.profile_image) }}" 
+               alt="Profile Picture" 
+               style="width:120px; height:120px; object-fit:cover; border-radius:50%; margin-bottom:10px;">
+        {% else %}
+          <img src="{{ url_for('static', filename='user_logo.jpg') }}" 
+               alt="Profile Picture" 
+               style="width:120px; height:120px; object-fit:cover; border-radius:50%; margin-bottom:10px;">
+        {% endif %}
+        <input type="file" name="profile_image" accept="image/*" />
+        <input type="hidden" name="current_profile_image" value="{{ user.profile_image }}">
+      </div>
+
+    <!-- Username -->
+    <div class="form-group">
+      <label>Username</label>
+      {% if user.role_id in [2,3] %}
+        <input type="text" name="username" value="{{ user.username }}" readonly class="form-control" />
+      {% else %}
+        <input type="text" name="username" value="{{ user.username }}" class="form-control" />
+      {% endif %}
+    </div>
+
+    <!-- Password validation-->
+      <div class="form-group">
+  <label>Current Password</label>
+  <div class="password-container">
+    <input type="password" name="current_password" placeholder="Enter current password" required>
+    <button type="button" class="toggle-password" onclick="togglePassword(this)"><i class="fa-regular fa-eye-slash"></i></button>
+  </div>
+</div>
+
+<div class="form-group">
+  <label>New Password</label>
+  <div class="password-container">
+    <input type="password" name="new_password" placeholder="Enter new password">
+    <button type="button" class="toggle-password" onclick="togglePassword(this)"><i class="fa-regular fa-eye-slash"></i></button>
+  </div>
+</div>
+
+    <!-- Bio -->
+    <div class="form-group">
+      <label>Bio</label>
+      <textarea name="bio" rows="3" placeholder="Write about yourself..." style="padding:5px">{{ user.bio }}</textarea>
+      <input type="hidden" name="current_bio" value="{{ user.bio }}">
+    </div>
+
+    <!-- Save -->
+    <button type="submit" class="btn save-btn">Save Changes</button>
+  </form>
+</div>
+
+</div>
+</div>
+
+{% endblock %}
+
+{% block content %}
+<div class="datetime-container">
+  <span id="date"></span> | <span id="time"></span>
+</div>
+
+<div class="main-content">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div id="flash-popup" class="flash-popup">
+        {% for category, message in messages %}
+          <div class="flash-message {{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="dashboard-container">
+
+    <!-- User Stats Panel -->
+    <div class="dashboard-panel">
+      <h3>User Stats</h3>
+      <canvas id="userStatsChart" class="chart-canvas"></canvas>
+    </div>
+
+    <!-- Article Sitemap -->
+    <div class="dashboard-panel">
+      <h3>Today's Articles</h3>
+      <canvas id="articleSitemapChart" class="chart-canvas"></canvas>
+    </div>
+
+    <!-- Review Panel -->
+    <div class="dashboard-panel" onclick="window.location.href='{{ url_for('review_articles') }}'" style="cursor:pointer;">
+      <h3>Review Panel</h3>
+      <canvas id="reviewPanelChart" class="chart-canvas"></canvas>
+      <p style="text-align:right; font-size:0.85rem; color:#555;">Click to review articles →</p>
+    </div>
+
+  </div>
+
+  <!-- Website Stats -->
+  <div class="stats-section">
+    <h2>Website Overview</h2>
+    <p>Total Articles: {{ website_stats.total_articles }}</p>
+    <p>Total Users: {{ website_stats.total_users }}</p>
+    <p>Active Authors (30 days): {{ website_stats.active_authors }}</p>
+  </div>
+</div>
+<!-- Floating Action Button --> 
+ <div class="floating-btn" onclick="togglePopup()" title="Add">+</div> 
+ <div id="popup-options" class="popup-options d-none"> 
+  <button class="btn popup-btn" onclick="redirectToCreateArticle()"><i class="fa-regular fa-pen-to-square"></i> Create Article</button> 
+  <button class="btn popup-btn" onclick="showUserForm()"><i class="fa-solid fa-user"></i> Add Moderator/Journalist</button> 
+ </div> 
+ <!-- Add User Form --> 
+  <div id="add-user-form" class="add-user-form d-none"> 
+    <form method="POST" action="{{ url_for('add_user') }}" class="user-form">
+       <input type="hidden" name="next" value="{{ request.args.get('next', url_for('admin_dashboard')) }}"> 
+      <h5>Add New User</h5> 
+      <input type="text" name="username" placeholder="Username" required /> 
+      <div class="password-container">
+        <input type="password" name="password" placeholder="Password" required /> 
+        <button type="button" class="toggle-password" onclick="togglePassword(this)"><i class="fa-regular fa-eye-slash"></i></button>
+      </div>
+      <select name="role_id" required> 
+        <option value="" disabled selected>Select Role</option> 
+          <option value="2">Moderator</option> 
+          <option value="3">Journalist</option> 
+        </select> 
+      <select name="district_id" id="district" required> 
+        <option value="" disabled selected>Select District</option> 
+        {% for district in districts %} 
+        <option value="{{ district.id }}">
+          {{ district.name }}
+        </option> 
+        {% endfor %} 
+      </select> 
+      <div class="form-actions"> 
+        <button type="submit" class="btn submit-btn">Submit</button> 
+        <button type="button" class="btn cancel-btn" onclick="hideUserForm()">Cancel</button> 
+      </div> 
+    </form> 
+  </div>
+{% endblock %}
+
+{% block script %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  // Format current date & time
+  const now = new Date();
+  function updateDateTime() {
+    const dateOptions = { day: "2-digit", month: "long", year: "numeric" };
+    const timeOptions = { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false };
+    document.getElementById("date").textContent = now.toLocaleDateString("en-GB", dateOptions);
+    document.getElementById("time").textContent = now.toLocaleTimeString("en-GB", timeOptions);
+  }
+  updateDateTime();
+  setInterval(updateDateTime, 1000);
+
+  // Chart: User Stats
+  const userStatsData = {
+    labels: {{ user_stats|map(attribute='role_name')|list|tojson }},
+    datasets: [{
+      label: 'Users',
+      data: {{ user_stats|map(attribute='total')|list|tojson }},
+      backgroundColor: '#01332b'
+    }]
+  };
+  new Chart(document.getElementById('userStatsChart'), {
+    type: 'bar',
+    data: userStatsData,
+    options: { responsive: true, plugins: { legend: { display: false } } }
+  });
+
+  // Chart: Today's Articles
+  const articleSitemapData = {
+    labels: {{ article_sitemap|map(attribute='status')|list|tojson }},
+    datasets: [{
+      label: 'Articles',
+      data: {{ article_sitemap|map(attribute='count')|list|tojson }},
+      backgroundColor: '#251b28'
+    }]
+  };
+  new Chart(document.getElementById('articleSitemapChart'), {
+    type: 'bar',
+    data: articleSitemapData,
+    options: { responsive: true, plugins: { legend: { display: false } } }
+  });
+
+  // Chart: Review Panel
+  const reviewPanelData = {
+    labels: {{ review_panel|map(attribute='status')|list|tojson }},
+    datasets: [{
+      label: 'Articles',
+      data: {{ review_panel|map(attribute='count')|list|tojson }},
+      backgroundColor: '#aabaa'
+    }]
+  };
+  new Chart(document.getElementById('reviewPanelChart'), {
+    type: 'bar',
+    data: reviewPanelData,
+    options: { responsive: true, plugins: { legend: { display: false } } }
+  });
+
+});
+function toggleProfile() {
+        document.getElementById("profileSidebar").classList.toggle("active");
+}
+       function togglePassword(button) {
+    const input = button.previousElementSibling; 
+    const icon = button.querySelector('i');      
+
+    if (input.type === "password") {
+        input.type = "text";
+        icon.classList.remove("fa-eye-slash");
+        icon.classList.add("fa-eye");
+    } else {
+        input.type = "password";
+        icon.classList.remove("fa-eye-slash");
+        icon.classList.add("fa-eye-slash");
+    }
+}
+function togglePopup() {
+    const popup = document.getElementById("popup-options");
+    popup.classList.toggle("d-none");
+}
+document.addEventListener("click", function(event) {
+    const popup = document.getElementById("popup-options");
+    const btn = document.querySelector(".btn-floating");
+    
+    if (!popup.classList.contains("d-none") && 
+        !popup.contains(event.target) && 
+        !btn.contains(event.target)) {
+        popup.classList.add("d-none");
+    }
+});
+
+function showUserForm() {
+    document.getElementById("popup-options").classList.add("d-none");
+    document.getElementById("add-user-form").classList.remove("d-none");
+}
+
+function hideUserForm() {
+    document.getElementById("add-user-form").classList.add("d-none");
+}
+document.addEventListener("click", function(event) {
+    const form = document.getElementById("add-user-form");
+    if (!form.classList.contains("d-none") && !form.contains(event.target) && !document.querySelector(".btn-floating").contains(event.target)) {
+        form.classList.add("d-none");
+    }
+});
+function redirectToCreateArticle() { window.location.href = "/article"; }
+</script>
+{% endblock %}
