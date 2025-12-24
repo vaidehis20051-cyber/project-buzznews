@@ -89,7 +89,8 @@
                     <p><strong>Author:</strong> {{ article.author }}</p>
 
                     <div class="article-body">
-                      {{ article.content |striptags }}
+                      <p>{{ article.content |striptags }}</p>
+                      
                       {% if article.image_url %}
                       <img src="{{ url_for('static', filename='uploads/' ~ article.image_url) }}"
                            alt="Article Image"

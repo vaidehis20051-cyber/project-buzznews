@@ -23,6 +23,7 @@ def get_user_stats():
         GROUP BY r.name
     """)
     rows = cursor.fetchall()
+    cursor.close()
     connection.close()
     return {row['role_name']: row['total'] for row in rows}
 
@@ -41,6 +42,7 @@ def get_todays_articles():
         GROUP BY status
     """)
     rows = cursor.fetchall()
+    cursor.close()
     connection.close()
     return rows
 
@@ -104,7 +106,8 @@ def get_website_stats():
         WHERE DATE(submit_time) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
     """)
     active_authors = cursor.fetchone()['active_authors']
-
+    
+    cursor.close()
     connection.close()
 
     return {

@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS users (
 INSERT IGNORE INTO users (username, password, role_id, district_id)
 VALUES ('admin', 'admin_123', 1, 15);
 
--- Categories (needed for articles)
+-- Categories 
 CREATE TABLE IF NOT EXISTS categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,

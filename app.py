@@ -16,7 +16,7 @@ from insights import (
 
 pymysql.install_as_MySQLdb()
 app = Flask(__name__)
-app.secret_key = "buzznews"
+app.secret_key = "buzznews"  
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@localhost:3306/buzznews'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -457,7 +457,8 @@ def journalist_dashboard():
 
     tab = request.args.get('tab', 'draft')
     
-    return render_template('journalist_dashboard.html', user=user, articles=articles, active_tab=tab,notifications=top_notifications,all_notifications=all_notifications)
+    return render_template('journalist_dashboard.html', user=user, articles=articles, active_tab=tab,notifications=top_notifications,
+                           all_notifications=all_notifications)
 
 # ------------------- CREATE ARTICLE -------------------
 @app.route('/article', methods=['POST', 'GET'])
